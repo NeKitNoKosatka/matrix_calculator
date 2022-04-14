@@ -1,0 +1,378 @@
+# This Python file uses the following encoding: utf-8
+import os
+from pathlib import Path
+import sys
+import ctypes
+
+import numpy as np
+
+import calculator
+import function_cal
+import calculator as cl
+
+from PySide6.QtWidgets import *
+from PySide6.QtCore import QFile
+from PySide6.QtUiTools import QUiLoader
+from PySide6.QtGui import QIcon
+
+"""
+Widget with gui of matrix calculator
+"""
+
+
+class Widget(QWidget):
+    def __init__(self):
+        super(Widget, self).__init__()
+        self.load_ui()                              # load ui file with gui
+        self.setWindowTitle('Matrix Calculator')    # set title
+        self.setFixedSize(761, 534)                 # make size of window fixed
+        self.setWindowIcon(QIcon('matrix.ico'))     # set window icon
+        self.functions()
+        self.active_tab_check()
+        self.check = 0
+        self.matrix_choice()
+        self.result = 0
+
+    """
+    Loading ui file with gui function
+    """
+    def load_ui(self):
+        loader = QUiLoader()                        # make loader
+        path = os.fspath(Path(__file__).resolve().parent / "form_first.ui")    # path to ui file wit gui
+        ui_file = QFile(path)
+        ui_file.open(QFile.ReadOnly)    # open ui file
+        loader.load(ui_file, self)      # load ui file
+        ui_file.close()                 # close ui file
+
+    """
+    Activation functions by clicking on buttons
+    """
+
+    def functions(self):
+        button_sum = self.findChild(QPushButton, 'Sum')
+        button_sum.clicked.connect(lambda: self.addition())
+
+        button_sub = self.findChild(QPushButton, 'Sub')
+        button_sub.clicked.connect(lambda: self.subtraction())
+
+        button_multiply = self.findChild(QPushButton, 'Multiply')
+        button_multiply.clicked.connect(lambda: self.multiplication())
+
+        button_divide = self.findChild(QPushButton, 'Divide')
+        button_divide.clicked.connect(lambda: self.division())
+
+        button_transpose = self.findChild(QPushButton, 'Transpose')
+        button_transpose.clicked.connect(lambda: self.transposition())
+
+        button_det = self.findChild(QPushButton, 'Det')
+        button_det.clicked.connect(lambda: self.find_determinant())
+
+        button_inverse = self.findChild(QPushButton, 'Inverse')
+        button_inverse.clicked.connect(lambda: self.inversion())
+
+        button_multiply_on = self.findChild(QPushButton, 'MultiplyOn')
+        button_multiply_on.clicked.connect(lambda: self.multiplication_on_number())
+
+        button_multiply_on = self.findChild(QPushButton, 'Calculator')
+        button_multiply_on.clicked.connect(lambda: cl.start())
+
+    """
+    Which tab now is active check
+    """
+
+    def active_tab_check(self):
+        tub_1 = self.findChild(QTabWidget, 'tabWidget')     # tab 1 with Matrix A
+        tub_1.tabBarClicked.connect(self.tab_bar_clicked)
+
+        tub_2 = self.findChild(QTabWidget, 'tabWidget_2')   # tab 2 with Matrix B
+        tub_2.tabBarClicked.connect(self.tab_bar_clicked)
+
+        tub_3 = self.findChild(QTabWidget, 'tabWidget_3')   # tab 3 with Matrix C
+        tub_3.tabBarClicked.connect(self.tab_bar_clicked)
+
+    """
+    If tab was clicked returns index.
+    chek == 0 -> tab_1
+    chek == 1 -> tab_2 
+    chek == 2 -> tab_3  
+    """
+
+    def tab_bar_clicked(self, index):
+        self.check = index
+        # print(self.check)
+
+    """
+    Addition function
+    """
+
+    def addition(self):
+        self.result = function_cal.sum(self.matrix_choice())
+        self.get_result()
+
+    """
+    Subtraction function
+    """
+
+    def subtraction(self):
+        self.result = function_cal.sub(self.matrix_choice())
+        self.get_result()
+
+    """
+    Multiplying function
+    """
+
+    def multiplication(self):
+        self.result = function_cal.multiply(self.matrix_choice())
+        self.get_result()
+
+    """
+    Dividing function
+    """
+
+    def division(self):
+        self.result = function_cal.divide(self.matrix_choice())
+        self.get_result()
+
+    """
+    Transpose function
+    """
+
+    def transposition(self):
+        self.result = function_cal.transpose(self.matrix_choice())
+        self.get_result()
+
+    """
+    Find the determinant function
+    """
+
+    def find_determinant(self):
+        self.result = function_cal.det(self.matrix_choice())
+
+    """
+    Inverse function
+    """
+
+    def inversion(self):
+        self.result = function_cal.inverse(self.matrix_choice())
+        self.get_result()
+
+    """
+    Multiplying on number function
+    """
+
+    def multiplication_on_number(self):
+        number = self.findChild(QDoubleSpinBox, 'doubleSpinBox')
+        self.result = function_cal.multiply_on(self.matrix_choice()[0], number.value())
+        self.get_result()
+
+    """
+    Create and returns two matrices. Size of matrices chosen by user
+    """
+
+    def matrix_choice(self):
+        global matrix_1, matrix_2
+        if self.check == 0:
+            matrix_1 = self.matrix_A_2x2()
+            matrix_2 = self.matrix_B_2x2()
+        elif self.check == 1:
+            matrix_1 = self.matrix_A_3x3()
+            matrix_2 = self.matrix_B_3x3()
+        elif self.check == 2:
+            matrix_1 = self.matrix_A_4x4()
+            matrix_2 = self.matrix_B_4x4()
+        elif self.check == 3:
+            matrix_1 = self.matrix_A_5x5()
+            matrix_2 = self.matrix_B_5x5()
+        return matrix_1, matrix_2
+
+    """
+    If the first cell of matrix A (2x2) is not clear makes zero matrix 2x2
+    """
+
+    def matrix_A_2x2(self):
+        matrix = np.zeros((2, 2))
+        counter = 0
+        if self.findChild(QLineEdit, 'lineEdit_1').text() != '':
+            for i in range(2):
+                for j in range(2):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    matrix_el = self.findChild(QLineEdit, name)
+                    matrix[i][j] = float(matrix_el.text())
+            return matrix
+        # print(type(matrix_el))
+        # print(matrix_el)
+        # print(matrix_el.text())
+        # print(type(matrix_el.text()))
+
+    """
+    If the first cell of matrix A (3x3) is not clear makes zero matrix 3x3
+    """
+
+    def matrix_A_3x3(self):
+        matrix = np.zeros((3, 3))
+        counter = 4
+        if self.findChild(QLineEdit, 'lineEdit_5').text() != '':
+            for i in range(3):
+                for j in range(3):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    matrix_el = self.findChild(QLineEdit, name)
+                    matrix[i][j] = float(matrix_el.text())
+            return matrix
+
+    """
+    If the first cell of matrix A (4x4) is not clear makes zero matrix 4x4
+    """
+
+    def matrix_A_4x4(self):
+        matrix = np.zeros((4, 4))
+        counter = 13
+        if self.findChild(QLineEdit, 'lineEdit_14').text() != '':
+            for i in range(4):
+                for j in range(4):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    matrix_el = self.findChild(QLineEdit, name)
+                    matrix[i][j] = float(matrix_el.text())
+            return matrix
+
+    """
+    If the first cell of matrix A (5x5) is not clear makes zero matrix 5x5
+    """
+
+    def matrix_A_5x5(self):
+        matrix = np.zeros((5, 5))
+        counter = 29
+        if self.findChild(QLineEdit, 'lineEdit_30').text() != '':
+            for i in range(5):
+                for j in range(5):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    matrix_el = self.findChild(QLineEdit, name)
+                    matrix[i][j] = float(matrix_el.text())
+            return matrix
+
+    """
+    If the first cell of matrix B (2x2) is not clear makes zero matrix 2x2
+    """
+
+    def matrix_B_2x2(self):
+        matrix = np.zeros((2, 2))
+        counter = 54
+        if self.findChild(QLineEdit, 'lineEdit_55').text() != '':
+            for i in range(2):
+                for j in range(2):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    matrix_el = self.findChild(QLineEdit, name)
+                    matrix[i][j] = float(matrix_el.text())
+            return matrix
+
+    """
+    If the first cell of matrix B (3x3) is not clear makes zero matrix 3x3
+    """
+
+    def matrix_B_3x3(self):
+        matrix = np.zeros((3, 3))
+        counter = 58
+        if self.findChild(QLineEdit, 'lineEdit_59').text() != '':
+            for i in range(3):
+                for j in range(3):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    matrix_el = self.findChild(QLineEdit, name)
+                    matrix[i][j] = float(matrix_el.text())
+            return matrix
+
+    """
+    If the first cell of matrix B (4x4) is not clear makes zero matrix 4x4
+    """
+
+    def matrix_B_4x4(self):
+        matrix = np.zeros((4, 4))
+        counter = 67
+        if self.findChild(QLineEdit, 'lineEdit_68').text() != '':
+            for i in range(4):
+                for j in range(4):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    matrix_el = self.findChild(QLineEdit, name)
+                    matrix[i][j] = float(matrix_el.text())
+            return matrix
+
+    """
+    If the first cell of matrix B (5x5) is not clear makes zero matrix 5x5
+    """
+
+    def matrix_B_5x5(self):
+        matrix = np.zeros((5, 5))
+        counter = 83
+        if self.findChild(QLineEdit, 'lineEdit_84').text() != '':
+            for i in range(5):
+                for j in range(5):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    matrix_el = self.findChild(QLineEdit, name)
+                    matrix[i][j] = float(matrix_el.text())
+            return matrix
+
+    """
+    Returns result in matrix C (2x2, 3x3, 4x4, 5x5)
+    """
+
+    def get_result(self):
+        if self.check == 0:
+            counter = 108
+            for i in range(2):
+                for j in range(2):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    output = self.findChild(QLineEdit,name)
+                    if type(self.result) != int:
+                        output.setText(str(self.result[i][j]))
+                        # print(self.result[i][j])
+        elif self.check == 1:
+            counter = 112
+            for i in range(3):
+                for j in range(3):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    output = self.findChild(QLineEdit,name)
+                    if type(self.result) != int:
+                        output.setText(str(self.result[i][j]))
+                        # print(self.result[i][j])
+        elif self.check == 2:
+            counter = 121
+            for i in range(4):
+                for j in range(4):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    output = self.findChild(QLineEdit,name)
+                    if type(self.result) != int:
+                        output.setText(str(self.result[i][j]))
+                        # print(self.result[i][j])
+        elif self.check == 3:
+            counter = 137
+            for i in range(5):
+                for j in range(5):
+                    counter += 1
+                    name = 'lineEdit_' + str(counter)
+                    output = self.findChild(QLineEdit,name)
+                    if type(self.result) != int:
+                        output.setText(str(self.result[i][j]))
+                        # print(self.result[i][j])
+
+
+"""
+Start the app
+"""
+
+if __name__ == "__main__":
+    my_app_id = 'OBRIYASHCHIKOV'
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(my_app_id)  # set app id
+    app = QApplication([])                  # app initialization
+    app.setWindowIcon(QIcon('matrix.png'))  # set window icon
+    widget = Widget()                       # widget initialization
+    widget.show()
+    sys.exit(app.exec())
